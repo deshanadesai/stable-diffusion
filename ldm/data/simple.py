@@ -7,7 +7,9 @@ from PIL import Image
 from torchvision import transforms
 from einops import rearrange
 from ldm.util import instantiate_from_config
-from datasets import load_dataset
+from datasets import load_dataset, Dataset, DatasetDict
+import pandas as pd
+from PIL import Image
 
 class FolderData(Dataset):
     def __init__(self, root_dir, caption_file, image_transforms, ext="jpg") -> None:
@@ -41,18 +43,54 @@ class FolderData(Dataset):
         im = im.convert("RGB")
         return self.tform(im)
 
+# def hf_dataset(
+#     name,
+#     image_transforms=[],
+#     image_column="image",
+#     text_column="text",
+#     split='train',
+#     image_key='image',
+#     caption_key='txt',
+#     ):
+#     """Make huggingface dataset with appropriate list of transforms applied
+#     """
+#     ds = load_dataset(name, split=split)
+#     image_transforms = [instantiate_from_config(tt) for tt in image_transforms]
+#     image_transforms.extend([transforms.ToTensor(),
+#                                 transforms.Lambda(lambda x: rearrange(x * 2. - 1., 'c h w -> h w c'))])
+#     tform = transforms.Compose(image_transforms)
+
+#     assert image_column in ds.column_names, f"Didn't find column {image_column} in {ds.column_names}"
+#     assert text_column in ds.column_names, f"Didn't find column {text_column} in {ds.column_names}"
+
+#     def pre_process(examples):
+#         processed = {}
+#         processed[image_key] = [tform(im) for im in examples[image_column]]
+#         processed[caption_key] = examples[text_column]
+#         return processed
+
+#     ds.set_transform(pre_process)
+#     return ds
+
+
 def hf_dataset(
     name,
     image_transforms=[],
-    image_column="image",
-    text_column="text",
+    image_column="image_path",
+    text_column="name",
     split='train',
     image_key='image',
     caption_key='txt',
     ):
     """Make huggingface dataset with appropriate list of transforms applied
     """
-    ds = load_dataset(name, split=split)
+    ds_pd = Dataset.from_pandas(pd.read_csv('/home/ubuntu/emojis_path.csv'))
+
+    ds = DatasetDict()
+ 
+    ds = ds_pd
+ 
+    
     image_transforms = [instantiate_from_config(tt) for tt in image_transforms]
     image_transforms.extend([transforms.ToTensor(),
                                 transforms.Lambda(lambda x: rearrange(x * 2. - 1., 'c h w -> h w c'))])
@@ -63,7 +101,7 @@ def hf_dataset(
 
     def pre_process(examples):
         processed = {}
-        processed[image_key] = [tform(im) for im in examples[image_column]]
+        processed[image_key] = [tform(Image.open(im).convert('RGB')) for im in examples[image_column]]
         processed[caption_key] = examples[text_column]
         return processed
 
